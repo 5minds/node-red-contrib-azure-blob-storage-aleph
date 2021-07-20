@@ -42,7 +42,7 @@ module.exports = function (RED) {
                 setStatus(node, statusEnum.error);
                 return;
             }
-            
+
             callback();
         });
     };
@@ -55,7 +55,7 @@ module.exports = function (RED) {
                 callback(error);
             }
 
-            node.log("Blob "+ blobName + " uploaded to " + containerName + " container");            
+            node.log("Blob " + blobName + " uploaded to " + containerName + " container");
             callback();
         });
     };
@@ -79,8 +79,13 @@ module.exports = function (RED) {
             let clientBlobName;
 
             if (!this.credentials.blob) {
-                var nameObject = path.parse(msg.payload);
-                clientBlobName = nameObject.base;
+                if (!msg.blobName) {
+                    var nameObject = path.parse(msg.payload);
+                    clientBlobName = nameObject.base;
+                }
+                else {
+                    clientBlobName = msg.blobName;
+                }
             }
             else {
                 clientBlobName = this.credentials.blob;
@@ -91,15 +96,12 @@ module.exports = function (RED) {
                 uploadBlob(node, msg.payload, blobService, clientContainerName, clientBlobName, (error) => {
                     if (error) {
                         setStatus(node, statusEnum.error);
+                        node.error('Error while trying to save blob:' + error.toString());
                         return;
                     }
+                    msg.status = "OK";
 
-                    let newMsg = {}
-                    newMsg.payload = clientBlobName;
-                    newMsg.containerName = clientContainerName;
-                    newMsg.status = "OK";
-
-                    node.send(newMsg);
+                    node.send(msg);
                     setStatus(node, statusEnum.sent);
                 });
             });
@@ -120,7 +122,7 @@ module.exports = function (RED) {
         let clientAccountName = this.credentials.accountname;
         let clientAccountKey = this.credentials.key;
         let clientContainerName = this.credentials.container;
-        let clientBlobName = node.credentials.blob;        
+        let clientBlobName = node.credentials.blob;
 
         var blobservice = Client.createBlobService(clientAccountName, clientAccountKey);
         setStatus(node, statusEnum.operational);
@@ -140,9 +142,10 @@ module.exports = function (RED) {
             downloadBlob(node, blobservice, clientContainerName, clientBlobName, destinationFile, (error) => {
                 if (error) {
                     setStatus(node, statusEnum.error);
+                    node.error('Error while trying to save blob:' + error.toString());
                     return;
                 }
-                
+
                 let newMsg = {};
                 newMsg.payload = destinationFile;
                 newMsg.blobName = clientBlobName;
@@ -158,7 +161,7 @@ module.exports = function (RED) {
         });
     }
 
-    function downloadBlob(node, blobservice, containerName, blobName, fileName, callback) {        
+    function downloadBlob(node, blobservice, containerName, blobName, fileName, callback) {
         blobservice.getBlobToLocalFile(containerName, blobName, fileName, function (error2) {
             if (error2) {
                 node.log(error2);
@@ -166,7 +169,7 @@ module.exports = function (RED) {
                 callback(error2);
             }
 
-            node.log("Blob "+ blobName + " downloaded");
+            node.log("Blob " + blobName + " downloaded");
             callback();
         });
     }

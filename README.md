@@ -1,4 +1,5 @@
 # node-red-contrib-azure-blob-storage-aleph
+[![npm version](https://badge.fury.io/js/node-red-contrib-azure-blob-storage-aleph.svg)](https://badge.fury.io/js/node-red-contrib-azure-blob-storage-aleph)
 
 node-red-contrib-azure-blob-storage-aleph is a <a href="http://nodered.org" target="_new">Node-RED</a> node that allows you to work with Azure Blob Storage. You can create and delete Containers and also blob files.
 This projects comes from the discontinued repo 
@@ -33,18 +34,34 @@ npm install -g node-red-contrib-azure-blob-storage-aleph
 
 ```json
 {
+	payload: "file_existing_in_node_red.json"
+}
+```
+
+Specifying blobname (accepts folder declaration)
+```json
+{
 	payload: "file_existing_in_node_red.json",
-	topic: "topic"
+    blobName: "test/destination_blobname.json"
 }
 ```
 
 #### Ouput Data example
+The node redirects input message
 
 ```json
 {
-	payload: "file_existing_in_node_red.json"
-	containerName: "containerforexample"
-	status: "OK"
+	payload: "file_existing_in_node_red.json",
+	status: "OK",
+	_msgid: "bf03c891.604458"
+}
+```
+Or with blobName
+```json
+{
+	payload: "file_existing_in_node_red.json",
+    blobName: "test/destination_blobname.json",
+	status: "OK",
 	_msgid: "bf03c891.604458"
 }
 ```
