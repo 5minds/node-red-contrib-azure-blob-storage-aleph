@@ -122,7 +122,7 @@ module.exports = function (RED) {
         let clientAccountName = this.credentials.accountname;
         let clientAccountKey = this.credentials.key;
         let clientContainerName = this.credentials.container;
-        let clientBlobName = node.credentials.blob;
+        let clientBlobName;
 
         var blobservice = Client.createBlobService(clientAccountName, clientAccountKey);
         setStatus(node, statusEnum.operational);
@@ -132,9 +132,21 @@ module.exports = function (RED) {
             setStatus(node, statusEnum.receiving);
 
             if (msg.payload) {
-                destinationFile = msg.payload;
+                if (!msg.payload.destinationFile) {
+                    node.error('No destinationFile parameter');
+                    return;
+                }
+                destinationFile = msg.payload.destinationFile;
+                
+                clientBlobName = msg.payload.blobName ? msg.payload.blobName : node.credentials.blob;
+
+                if (!clientBlobName) {
+                    node.error('No BlobName defined');
+                    return;
+                }
             }
             else {
+                clientBlobName = node.credentials.blob;
                 const fileName = clientBlobName.replace('.txt', '.downloaded.txt');
                 destinationFile = path.join(__dirname, fileName);
             }
@@ -173,7 +185,6 @@ module.exports = function (RED) {
             callback();
         });
     }
-
     // Registration of the node into Node-RED
     RED.nodes.registerType("Aleph Save Blob", AzureBlobStorage, {
         credentials: {
