@@ -1,11 +1,12 @@
-/*jshint esversion: 6 */
-module.exports = function (RED) {
 
-    var Client = require('azure-storage');
+
+/*jshint esversion: 6 */
+module.exports = function (RED) {    
     var fs = require('fs');
     var path = require('path');
     var clientBlobService = null;
     var nodeConfig = null;
+    var Client = require('azure-storage');
 
     var statusEnum = {
         disconnected: { color: "red", text: "Disconnected" },
@@ -59,6 +60,15 @@ module.exports = function (RED) {
             callback();
         });
     };
+
+    function ensureDirectoryExistence(filePath) {
+        var dirname = path.dirname(filePath);
+        if (fs.existsSync(dirname)) {            
+            return true;
+        }
+        ensureDirectoryExistence(dirname);
+        fs.mkdirSync(dirname);
+    }
 
     // Main function called by Node-RED    
     function AzureBlobStorage(config) {
@@ -116,12 +126,15 @@ module.exports = function (RED) {
         // Store node for further use
         var node = this;
         nodeConfig = config;
-
+        //const tempDirectory = "./blobs_downloded";
+        
+        //ensureDirectoryExistence(tempDirectory);
+       
         // Create the Node-RED node
-        RED.nodes.createNode(this, config);
-        let clientAccountName = this.credentials.accountname;
-        let clientAccountKey = this.credentials.key;
-        let clientContainerName = this.credentials.container;
+        RED.nodes.createNode(node, config);
+        let clientAccountName = node.credentials.accountname;
+        let clientAccountKey = node.credentials.key;
+        let clientContainerName = node.credentials.container;
         let clientBlobName;
 
         var blobservice = Client.createBlobService(clientAccountName, clientAccountKey);
@@ -136,7 +149,8 @@ module.exports = function (RED) {
                     node.error('No destinationFile parameter');
                     return;
                 }
-                destinationFile = msg.payload.destinationFile;
+                destinationFile =  msg.payload.destinationFile;
+                //destinationFile = path.join(tempDirectory, msg.payload.destinationFile);
                 
                 clientBlobName = msg.payload.blobName ? msg.payload.blobName : node.credentials.blob;
 
@@ -148,7 +162,7 @@ module.exports = function (RED) {
             else {
                 clientBlobName = node.credentials.blob;
                 const fileName = clientBlobName.replace('.txt', '.downloaded.txt');
-                destinationFile = path.join(__dirname, fileName);
+                destinationFile = path.join(tempDirectory, fileName);
             }
 
             downloadBlob(node, blobservice, clientContainerName, clientBlobName, destinationFile, (error) => {
@@ -169,6 +183,7 @@ module.exports = function (RED) {
         });
 
         this.on('close', function () {
+            node.log("close event");
             disconnectFrom(this);
         });
     }
