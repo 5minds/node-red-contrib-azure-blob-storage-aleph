@@ -62,12 +62,7 @@ module.exports = function (RED) {
     };
 
     function ensureDirectoryExistence(filePath) {
-        var dirname = path.dirname(filePath);
-        if (fs.existsSync(dirname)) {            
-            return true;
-        }
-        ensureDirectoryExistence(dirname);
-        fs.mkdirSync(dirname);
+        !fs.existsSync(filePath) && fs.mkdirSync(filePath, { recursive: true });
     }
 
     // Main function called by Node-RED    
@@ -126,9 +121,10 @@ module.exports = function (RED) {
         // Store node for further use
         var node = this;
         nodeConfig = config;
-        //const tempDirectory = "./blobs_downloded";
+        const tempDirectory = "./blobs_downloded";
         
-        //ensureDirectoryExistence(tempDirectory);
+        ensureDirectoryExistence(tempDirectory);
+        
        
         // Create the Node-RED node
         RED.nodes.createNode(node, config);
@@ -137,9 +133,9 @@ module.exports = function (RED) {
         let clientContainerName = node.credentials.container;
         let clientBlobName;
 
-        var blobservice = Client.createBlobService(clientAccountName, clientAccountKey);
+        let blobservice = Client.createBlobService(clientAccountName, clientAccountKey);
         setStatus(node, statusEnum.operational);
-        var destinationFile;
+        let destinationFile;
 
         this.on('input', function (msg) {
             setStatus(node, statusEnum.receiving);
@@ -149,8 +145,8 @@ module.exports = function (RED) {
                     node.error('No destinationFile parameter');
                     return;
                 }
-                destinationFile =  msg.payload.destinationFile;
-                //destinationFile = path.join(tempDirectory, msg.payload.destinationFile);
+                //destinationFile =  msg.payload.destinationFile;
+                destinationFile = path.join(tempDirectory, msg.payload.destinationFile);
                 
                 clientBlobName = msg.payload.blobName ? msg.payload.blobName : node.credentials.blob;
 
@@ -171,13 +167,12 @@ module.exports = function (RED) {
                     node.error('Error while trying to save blob:' + error.toString());
                     return;
                 }
+                
+                msg.payload = destinationFile;
+                msg.blobName = clientBlobName;
+                msg.status = "OK";
 
-                let newMsg = {};
-                newMsg.payload = destinationFile;
-                newMsg.blobName = clientBlobName;
-                newMsg.status = "OK";
-
-                node.send(newMsg);
+                node.send(msg);
                 setStatus(node, statusEnum.received);
             });
         });
