@@ -8,7 +8,7 @@ This projects comes from the discontinued repo
 
 It contains tww Node-RED cloud nodes: **Azure Save Blob Storage** and **Azure Get Bob Storage**
 
-![](https://raw.githubusercontent.com/javis86/node-red-contrib-azure-blob-storage-aleph/main/images/flow-nodes.png)
+![](https://raw.githubusercontent.com/javis86/node-red-contrib-azure-blob-storage-aleph/main/images/flows-nodes.png)
 
 #### Azure Blob Storage
 
