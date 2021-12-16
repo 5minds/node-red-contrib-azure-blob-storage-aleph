@@ -8,7 +8,7 @@ This projects comes from the discontinued repo
 
 It contains tww Node-RED cloud nodes: **Azure Save Blob Storage** and **Azure Get Bob Storage**
 
-![](https://raw.githubusercontent.com/javis86/node-red-contrib-azure-blob-storage-aleph/main/images/flow-nodes.PNG)
+![](https://raw.githubusercontent.com/javis86/node-red-contrib-azure-blob-storage-aleph/main/images/flow-nodes.png)
 
 #### Azure Blob Storage
 
@@ -65,7 +65,16 @@ Or with blobName
 	_msgid: "bf03c891.604458"
 }
 ```
-
+On Error
+```json
+{
+	payload: "file_existing_in_node_red.json",
+    blobName: "test/destination_blobname.json",
+	status: "Error",
+    statusMessage: "Error: ENOENT: no such file or directory, stat 'file_existing_in_node_red.json'",
+	_msgid: "bf03c891.604458"
+}
+```
 #### Step by step guide
 
 1. Open Node-RED, usually: <http://127.0.0.1:1880>
@@ -79,7 +88,7 @@ Or with blobName
     ![](https://raw.githubusercontent.com/javis86/node-red-contrib-azure-blob-storage-aleph/main/images/import-nodes.PNG)
 
     ```
-    [{"id":"ead7871a.8172c8","type":"inject","z":"5e92f737.c60d68","name":"Payload","topic":"","payload":"DocumentTest.txt","payloadType":"str","repeat":"","crontab":"","once":false,"x":436,"y":273,"wires":[["b0dbc35f.28665"]]},{"id":"fdab4f1f.0cab","type":"debug","z":"5e92f737.c60d68","name":"Log","active":true,"console":"false","complete":"true","x":846,"y":273,"wires":[]},{"id":"f65e9c4e.e7afb","type":"debug","z":"5e92f737.c60d68","name":"Log","active":true,"console":"false","complete":"true","x":846,"y":333,"wires":[]},{"id":"b3f32ebe.8a2ee","type":"inject","z":"5e92f737.c60d68","name":"Payload","topic":"","payload":"DocumentTest.txt","payloadType":"str","repeat":"","crontab":"","once":false,"x":436,"y":333,"wires":[["e6748f3.2163b7"]]},{"id":"b0dbc35f.28665","type":"Save Blob","z":"5e92f737.c60d68","name":"Azure Save Blob Storage","x":646,"y":274,"wires":[["fdab4f1f.0cab"]]},{"id":"e6748f3.2163b7","type":"Get Blob","z":"5e92f737.c60d68","name":"Azure Get Blob Storage","x":647,"y":333,"wires":[["f65e9c4e.e7afb"]]}]
+[{"id":"a7579ad9.74add8","type":"tab","label":"Flow 2","disabled":false,"info":""},{"id":"ead7871a.8172c8","type":"inject","z":"a7579ad9.74add8","name":"Payload","props":[{"p":"payload.destinationFile","v":"DocumentTest.txt","vt":"str"},{"p":"payload.blobName","v":"some_file.txt","vt":"str"}],"repeat":"","crontab":"","once":false,"onceDelay":"","topic":"","x":160,"y":160,"wires":[["c58e50c2.93222"]]},{"id":"fdab4f1f.0cab","type":"debug","z":"a7579ad9.74add8","name":"Log","active":true,"console":"false","complete":"true","x":570,"y":100,"wires":[]},{"id":"f65e9c4e.e7afb","type":"debug","z":"a7579ad9.74add8","name":"Log","active":true,"console":"false","complete":"true","x":570,"y":160,"wires":[]},{"id":"afe4baa5.276bc8","type":"Aleph Save Blob","z":"a7579ad9.74add8","name":"Azure Save Blob Storage","x":370,"y":100,"wires":[["fdab4f1f.0cab"]]},{"id":"c58e50c2.93222","type":"Aleph Get Blob","z":"a7579ad9.74add8","name":"Azure Get Blob Storage","x":370,"y":160,"wires":[["f65e9c4e.e7afb"]]},{"id":"e5858fae.8e3d6","type":"inject","z":"a7579ad9.74add8","name":"Payload","props":[{"p":"payload"},{"p":"blobName","v":"some_file.txt","vt":"str"}],"repeat":"","crontab":"","once":false,"onceDelay":"","topic":"","payload":"./some_file_on_disk","payloadType":"str","x":160,"y":100,"wires":[["afe4baa5.276bc8"]]}]
     ```
 4. Double-click the Save Payload node
 
@@ -93,7 +102,7 @@ Or with blobName
 
     If you leave the Storage Blob name blank, the text in the msg.payload will be used as your blob name. Eg. if your msg.payload is ```blob1.txt```, and the Storage Blob Name property is empty, the blob name will be assigned as ```blob1```
 
-    ![](https://raw.githubusercontent.com/javis86/node-red-contrib-azure-blob-storage-aleph/main/images/save-blob-node-selected.PNG) 
+    ![](https://raw.githubusercontent.com/javis86/node-red-contrib-azure-blob-storage-aleph/main/images/save-blob-node-selected.png) 
     
     ![](https://raw.githubusercontent.com/javis86/node-red-contrib-azure-blob-storage-aleph/main/images/save-blob-node.PNG)
 
@@ -112,6 +121,36 @@ Or with blobName
 
 ### Getting data from Azure Blob Storage
 
+#### Input Data example
+
+```json
+{
+	destinationFile: "some_file.txt",    
+    blobName: "test/some_file.txt"
+}
+```
+#### Ouput Data example
+The node redirects input message
+
+```json
+{	
+    _msgid: "d8f907b0c9a5fdf1"
+    payload: "blobs_downloaded/some_file.txt"
+    blobName: "test/some_file.txt"
+    status: "OK"
+}
+```
+On Error
+```json
+{
+	payload: "blobs_downloaded/some_file.txt"
+    blobName: "test/some_file.txt"
+	status: "Error"
+    statusMessage: "StorageError: NotFound"
+	_msgid: "bf03c891.604458"
+}
+```
+
 1. Double-click the Get Payload node
 
     ![](https://raw.githubusercontent.com/javis86/node-red-contrib-azure-blob-storage-aleph/main/images/get-payload.PNG)
@@ -120,7 +159,7 @@ Or with blobName
 
 3. Double-click the Azure Save Blob Storage node, enter your Storage Account Name, Storage Account Key and your desired Container Name and Blob Name. Now click Done.
 
-    ![](https://raw.githubusercontent.com/javis86/node-red-contrib-azure-blob-storage-aleph/main/images/get-blob-node-selected.PNG) 
+    ![](https://raw.githubusercontent.com/javis86/node-red-contrib-azure-blob-storage-aleph/main/images/get-blob-node-selected.png) 
     
     ![](https://raw.githubusercontent.com/javis86/node-red-contrib-azure-blob-storage-aleph/main/images/save-blob-node.PNG)
 
