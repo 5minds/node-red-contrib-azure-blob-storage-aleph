@@ -125,8 +125,10 @@ On Error
 
 ```json
 {
-	destinationFile: "some_file.txt",    
-    blobName: "test/some_file.txt"
+	payload: {
+		destinationFile: "some_file.txt",    
+    		blobName: "test/some_file.txt"
+	}
 }
 ```
 #### Ouput Data example
