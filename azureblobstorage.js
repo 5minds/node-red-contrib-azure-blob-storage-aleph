@@ -1,15 +1,16 @@
 
 
 /*jshint esversion: 6 */
-module.exports = function (RED) {    
+module.exports = function (RED) {
     var fs = require('fs');
-    var path = require('path');    
-    var azure = require('azure-storage');
+    var path = require('path');
+    var azure = require('@azure/storage-blob');
 
     var statusEnum = {
         disconnected: { color: "red", text: "Disconnected" },
         sending: { color: "yellow", text: "Sending" },
-        sent: { color: "green", text: "Sent message" },
+        blobSaved: { color: "green", text: "Sent message" },
+        blobDownloaded: { color: "green", text: "Blob downloaded" },
         error: { color: "grey", text: "Error" },
         receiving: { color: "yellow", text: "Receiving" },
         received: { color: "green", text: "Received message" },
@@ -19,7 +20,7 @@ module.exports = function (RED) {
     const setStatus = (node, status) => {
         node.status({ fill: status.color, shape: "dot", text: status.text });
     };
- 
+
     var setErrorStatus = (node, status, message) => {
         node.status({ fill: status.color, shape: "dot", text: message });
     };
@@ -46,41 +47,52 @@ module.exports = function (RED) {
         });
     };
 
-    var uploadBlob = (node, file, blobService, containerName, blobName, callback) => {
-        blobService.createBlockBlobFromLocalFile(containerName, blobName, file, function (error) {
-            if (error) {
-                node.log(error);
-                setErrorStatus(node, statusEnum.error, file);
-                callback(error);
-                return;
-            }
-
-            node.log("Blob " + blobName + " uploaded to " + containerName + " container");
-            callback();
-        });
-    };
-
     function ensureDirectoryExistence(filePath) {
         !fs.existsSync(filePath) && fs.mkdirSync(filePath, { recursive: true });
     }
-        
+
     function AzureBlobStorage(config) {
         var node = this;
 
         RED.nodes.createNode(this, config);
         let clientAccountName = this.credentials.accountname;
         let clientAccountKey = this.credentials.key;
-        let clientContainerName = this.credentials.container;
+        let azureStorageBlobContainerName = this.credentials.container;
 
-        let blobService = azure.createBlobService(clientAccountName, clientAccountKey);
+        const azureStorageBlobConnectionString = `DefaultEndpointsProtocol=https;AccountName=${clientAccountName};AccountKey=${clientAccountKey};EndpointSuffix=core.windows.net`;
         setStatus(node, statusEnum.operational);
 
-        this.on('input', function (msg) {
-            let clientBlobName;
+        this.on('input', async function (msg) {
+            try {
+                setStatus(node, statusEnum.sending);
+                let clientBlobName = parseBlobName(this.credentials, msg);
 
-            if (!this.credentials.blob) {
+                const containerClient = new azure.ContainerClient(azureStorageBlobConnectionString, azureStorageBlobContainerName);
+                const blockBlobClient = containerClient.getBlockBlobClient(clientBlobName);
+                await blockBlobClient.uploadFile(msg.payload);
+
+                msg.status = "OK";
+                node.send(msg);
+                setStatus(node, statusEnum.blobSaved);
+            } catch (error) {
+                setStatus(node, statusEnum.error);
+                node.error('Error while trying to save blob:' + error.toString());
+
+                msg.statusMessage = error.toString();
+                msg.status = "Error";
+                node.send(msg);
+            }
+        });
+
+        this.on('close', function () {
+            disconnectFrom(node, blobService);
+        });
+
+        const parseBlobName = (credentials, msg) => {
+            let clientBlobName;
+            if (!credentials.blob) {
                 if (!msg.blobName) {
-                    var nameObject = path.parse(msg.payload);
+                    let nameObject = path.parse(msg.payload);
                     clientBlobName = nameObject.base;
                 }
                 else {
@@ -88,90 +100,64 @@ module.exports = function (RED) {
                 }
             }
             else {
-                clientBlobName = this.credentials.blob;
+                clientBlobName = credentials.blob;
             }
-
-            setStatus(node, statusEnum.sending);
-            createContainer(node, clientContainerName, blobService, function () {
-                uploadBlob(node, msg.payload, blobService, clientContainerName, clientBlobName, (error) => {
-                    if (error) {
-                        setStatus(node, statusEnum.error);
-                        node.error('Error while trying to save blob:' + error.toString());
-                        
-                        msg.statusMessage = error.toString();
-                        msg.status = "Error";
-                        node.send(msg);
-                        return;
-                    }
-                    msg.status = "OK";
-
-                    node.send(msg);
-                    setStatus(node, statusEnum.sent);
-                });
-            });
-        });
-
-        this.on('close', function () {
-            disconnectFrom(node, blobService);
-        });
+            return clientBlobName;
+        }
     }
 
     function AzureBlobStorageDownload(config) {
         var node = this;
         const tempDirectory = "./blobs_downloaded";
-        
-        ensureDirectoryExistence(tempDirectory);        
-       
+
+        ensureDirectoryExistence(tempDirectory);
+
         RED.nodes.createNode(node, config);
         let clientAccountName = node.credentials.accountname;
         let clientAccountKey = node.credentials.key;
-        let clientContainerName = node.credentials.container;
-        let clientBlobName;
+        let azureStorageBlobContainerName = node.credentials.container;        
 
-        let blobService = azure.createBlobService(clientAccountName, clientAccountKey);
-        setStatus(node, statusEnum.operational);        
+        const azureStorageBlobConnectionString = `DefaultEndpointsProtocol=https;AccountName=${clientAccountName};AccountKey=${clientAccountKey};EndpointSuffix=core.windows.net`;
+        setStatus(node, statusEnum.operational);
 
-        this.on('input', function (msg) {
+        this.on('input', async (msg) => {
             setStatus(node, statusEnum.receiving);
             let destinationFile;
+            let clientBlobName;
+            try {
+                if (msg.payload) {
+                    if (!msg.payload.destinationFile) {
+                        node.error('No destinationFile parameter');
+                        return;
+                    }
+                    destinationFile = path.join(tempDirectory, msg.payload.destinationFile);
+                    clientBlobName = msg.payload.blobName ? msg.payload.blobName : node.credentials.blob;
 
-            if (msg.payload) {
-                if (!msg.payload.destinationFile) {
-                    node.error('No destinationFile parameter');
-                    return;
+                    if (!clientBlobName) {
+                        node.error('No BlobName defined');
+                        return;
+                    }
                 }
-                destinationFile = path.join(tempDirectory, msg.payload.destinationFile);
-                
-                clientBlobName = msg.payload.blobName ? msg.payload.blobName : node.credentials.blob;
-
-                if (!clientBlobName) {
-                    node.error('No BlobName defined');
-                    return;
+                else {
+                    clientBlobName = node.credentials.blob;
+                    const fileName = clientBlobName.replace('.txt', '.downloaded.txt');
+                    destinationFile = path.join(tempDirectory, fileName);
                 }
-            }
-            else {
-                clientBlobName = node.credentials.blob;
-                const fileName = clientBlobName.replace('.txt', '.downloaded.txt');
-                destinationFile = path.join(tempDirectory, fileName);
-            }
 
-            downloadBlob(node, blobService, clientContainerName, clientBlobName, destinationFile, (error) => {
-                msg.payload = destinationFile;
-                msg.blobName = clientBlobName;
-                
-                if (error) {
-                    setStatus(node, statusEnum.error);
-                    node.error(`Error while trying to save blob: ${error.toString()}`);
-                    msg.status = "Error";
-                    msg.statusMessage = error.toString();
-                    node.send(msg);
-                    return;
-                }                
-                
+                const containerClient = new azure.ContainerClient(azureStorageBlobConnectionString, azureStorageBlobContainerName);
+                const blockBlobClient = containerClient.getBlockBlobClient(clientBlobName);
+                await blockBlobClient.downloadToFile(destinationFile);
+
                 msg.status = "OK";
                 node.send(msg);
                 setStatus(node, statusEnum.received);
-            });
+            } catch (error) {
+                setStatus(node, statusEnum.error);
+                node.error(`Error while trying to save blob: ${error.toString()}`);
+                msg.status = "Error";
+                msg.statusMessage = error.toString();
+                node.send(msg);
+            }
         });
 
         this.on('close', function () {
@@ -179,19 +165,6 @@ module.exports = function (RED) {
         });
     }
 
-    function downloadBlob(node, blobService, containerName, blobName, fileName, callback) {
-        blobService.getBlobToLocalFile(containerName, blobName, fileName, function (error2) {
-            if (error2) {
-                node.log(error2);
-                setErrorStatus(node, statusEnum.error, fileName);
-                callback(error2);
-                return;
-            }
-
-            node.log("Blob " + blobName + " downloaded");
-            callback();
-        });
-    }
     // Registration of the node into Node-RED
     RED.nodes.registerType("Aleph Save Blob", AzureBlobStorage, {
         credentials: {
