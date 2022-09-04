@@ -1,5 +1,3 @@
-
-
 /*jshint esversion: 6 */
 module.exports = function (RED) {
     var fs = require('fs');
@@ -7,11 +5,11 @@ module.exports = function (RED) {
     var azure = require('@azure/storage-blob');
 
     var statusEnum = {
-        disconnected: { color: "red", text: "Disconnected" },
+        disconnected: { color: "grey", text: "Disconnected" },
         sending: { color: "yellow", text: "Sending" },
-        blobSaved: { color: "green", text: "Sent message" },
+        blobSaved: { color: "green", text: "Blob Saved" },
         blobDownloaded: { color: "green", text: "Blob downloaded" },
-        error: { color: "grey", text: "Error" },
+        error: { color: "red", text: "Error" },
         receiving: { color: "yellow", text: "Receiving" },
         received: { color: "green", text: "Received message" },
         operational: { color: "blue", text: "Operational" }
@@ -23,35 +21,13 @@ module.exports = function (RED) {
 
     var setErrorStatus = (node, status, message) => {
         node.status({ fill: status.color, shape: "dot", text: message });
-    };
-
-    var disconnectFrom = (node, blobService) => {
-        if (blobService) {
-            node.log('Disconnecting from Azure');
-            blobService.removeAllListeners();
-            blobService = null;
-            setStatus(node, statusEnum.disconnected);
-        }
-    };
-
-    var createContainer = (node, containerName, blobservice, callback) => {
-        // Create the container
-        blobservice.createContainerIfNotExists(containerName, function (error) {
-            if (error) {
-                node.log(error);
-                setStatus(node, statusEnum.error);
-                return;
-            }
-
-            callback();
-        });
-    };
+    };    
 
     function ensureDirectoryExistence(filePath) {
         !fs.existsSync(filePath) && fs.mkdirSync(filePath, { recursive: true });
     }
 
-    function AzureBlobStorage(config) {
+    function azureStorageSaveBlob(config) {
         var node = this;
 
         RED.nodes.createNode(this, config);
@@ -62,30 +38,26 @@ module.exports = function (RED) {
         const azureStorageBlobConnectionString = `DefaultEndpointsProtocol=https;AccountName=${clientAccountName};AccountKey=${clientAccountKey};EndpointSuffix=core.windows.net`;
         setStatus(node, statusEnum.operational);
 
-        this.on('input', async function (msg) {
+        this.on('input', async (msg, send, done) => {
             try {
                 setStatus(node, statusEnum.sending);
                 let clientBlobName = parseBlobName(this.credentials, msg);
 
                 const containerClient = new azure.ContainerClient(azureStorageBlobConnectionString, azureStorageBlobContainerName);
+                await containerClient.createIfNotExists();
                 const blockBlobClient = containerClient.getBlockBlobClient(clientBlobName);
                 await blockBlobClient.uploadFile(msg.payload);
 
+                msg.payload.blobName = clientBlobName;
                 msg.status = "OK";
-                node.send(msg);
+                send(msg);
                 setStatus(node, statusEnum.blobSaved);
+                done();
             } catch (error) {
                 setStatus(node, statusEnum.error);
-                node.error('Error while trying to save blob:' + error.toString());
-
-                msg.statusMessage = error.toString();
-                msg.status = "Error";
-                node.send(msg);
+                done(`Error while trying to save blob: : ${error.toString()}`);
+                this.error(`Error while trying to save blob: ${error.toString()}`);
             }
-        });
-
-        this.on('close', function () {
-            disconnectFrom(node, blobService);
         });
 
         const parseBlobName = (credentials, msg) => {
@@ -106,7 +78,7 @@ module.exports = function (RED) {
         }
     }
 
-    function AzureBlobStorageDownload(config) {
+    function azureStorageGetBlob(config) {
         var node = this;
         const tempDirectory = "./blobs_downloaded";
 
@@ -115,26 +87,26 @@ module.exports = function (RED) {
         RED.nodes.createNode(node, config);
         let clientAccountName = node.credentials.accountname;
         let clientAccountKey = node.credentials.key;
-        let azureStorageBlobContainerName = node.credentials.container;        
+        let azureStorageBlobContainerName = node.credentials.container;
 
         const azureStorageBlobConnectionString = `DefaultEndpointsProtocol=https;AccountName=${clientAccountName};AccountKey=${clientAccountKey};EndpointSuffix=core.windows.net`;
         setStatus(node, statusEnum.operational);
 
-        this.on('input', async (msg) => {
+        this.on('input', async (msg, send, done) => {
             setStatus(node, statusEnum.receiving);
             let destinationFile;
             let clientBlobName;
             try {
                 if (msg.payload) {
                     if (!msg.payload.destinationFile) {
-                        node.error('No destinationFile parameter');
+                        done('No destinationFile parameter');
                         return;
                     }
                     destinationFile = path.join(tempDirectory, msg.payload.destinationFile);
-                    clientBlobName = msg.payload.blobName ? msg.payload.blobName : node.credentials.blob;
+                    clientBlobName = msg.payload.blobName || node.credentials.blob;
 
                     if (!clientBlobName) {
-                        node.error('No BlobName defined');
+                        done('No BlobName defined');
                         return;
                     }
                 }
@@ -148,25 +120,20 @@ module.exports = function (RED) {
                 const blockBlobClient = containerClient.getBlockBlobClient(clientBlobName);
                 await blockBlobClient.downloadToFile(destinationFile);
 
+                msg.payload.blobName = clientBlobName;
                 msg.status = "OK";
-                node.send(msg);
-                setStatus(node, statusEnum.received);
+                send(msg);
+                setStatus(node, statusEnum.blobDownloaded);
+                done();
             } catch (error) {
                 setStatus(node, statusEnum.error);
-                node.error(`Error while trying to save blob: ${error.toString()}`);
-                msg.status = "Error";
-                msg.statusMessage = error.toString();
-                node.send(msg);
+                done(`Error while trying to save blob: ${error.toString()}`);
+                this.error(`Error while trying to save blob: ${error.toString()}`);
             }
-        });
-
-        this.on('close', function () {
-            disconnectFrom(node, blobService);
         });
     }
 
-    // Registration of the node into Node-RED
-    RED.nodes.registerType("Aleph Save Blob", AzureBlobStorage, {
+    RED.nodes.registerType("Aleph Save Blob", azureStorageSaveBlob, {
         credentials: {
             accountname: { type: "text" },
             key: { type: "text" },
@@ -178,8 +145,7 @@ module.exports = function (RED) {
         }
     });
 
-    // Registration of the node into Node-RED to download
-    RED.nodes.registerType("Aleph Get Blob", AzureBlobStorageDownload, {
+    RED.nodes.registerType("Aleph Get Blob", azureStorageGetBlob, {
         credentials: {
             accountname: { type: "text" },
             key: { type: "text" },
