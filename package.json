@@ -35,7 +35,8 @@
   },
   "node-red": {
     "nodes": {
-      "azure": "azureblobstorage.js"
+      "azure-get": "azureblobstorage-get.js",
+      "azure-save": "azureblobstorage-save.js"
     }
   }
 }

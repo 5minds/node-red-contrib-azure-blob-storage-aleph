@@ -20,6 +20,9 @@ $RECYCLE.BIN/
 # Node.js dependencies
 node_modules
 node_modules/*
+# Add nodered folder for docker container
+nodered/*
+!nodered/.gitkeep
 
 # Tar G-Zipped files
 *.tgz
@@ -57,3 +60,8 @@ Temporary Items
 
 # VS Code
 .vscode
+!.vscode/lauch.json
+
+====
+# env file
+.env
