@@ -28,9 +28,9 @@ module.exports = function (RED) {
         const tempDirectory = fs.mkdtempSync(tempDir);
         node.log(`Temp directory: ${tempDirectory}`);
 
-        const clientAccountName = node.credentials?.accountname;
-        const clientAccountKey = node.credentials?.key;
-        const azureStorageBlobContainerName = node.credentials?.container;
+        const clientAccountName = RED.util.evaluateNodeProperty(config.accountname, config.accountname_type, node);
+        const clientAccountKey = RED.util.evaluateNodeProperty(config.key, config.key_type, node);
+        const azureStorageBlobContainerName = RED.util.evaluateNodeProperty(config.container, config.container_type, node);
 
         const azureStorageBlobConnectionString = `DefaultEndpointsProtocol=https;AccountName=${clientAccountName};AccountKey=${clientAccountKey};EndpointSuffix=core.windows.net`;
         setStatus(node, statusEnum.operational);
@@ -50,7 +50,7 @@ module.exports = function (RED) {
                     }
 
                     destinationFile = path.join(tempDirectory, msg.payload.destinationFile);
-                    clientBlobName = msg.payload.blobName || node.credentials.blob;
+                    clientBlobName = msg.payload.blobName || RED.util.evaluateNodeProperty(config.blob, config.blob_type, node);
 
                     if (!clientBlobName) {
                         done('No BlobName defined');
@@ -58,7 +58,7 @@ module.exports = function (RED) {
                     }
                 }
                 else {
-                    clientBlobName = node.credentials.blob;
+                    clientBlobName = RED.util.evaluateNodeProperty(config.blob, config.blob_type, node);;
                     const fileName = clientBlobName.replace('.txt', '.downloaded.txt');
                     destinationFile = path.join(tempDirectory, fileName);
                 }
@@ -67,7 +67,16 @@ module.exports = function (RED) {
                 const blockBlobClient = containerClient.getBlockBlobClient(clientBlobName);
                 await blockBlobClient.downloadToFile(destinationFile);
 
-                msg.payload.blobName = clientBlobName;
+                if (msg.payload) {
+                    msg.payload.blobName = clientBlobName;
+                    msg.payload.downloadedFilename = destinationFile;
+                } else {
+                    msg.payload = { 
+                        blobName: clientBlobName,
+                        downloadedFilename: destinationFile
+                    };
+                }
+
                 msg.status = "OK";
                 
                 send(msg);

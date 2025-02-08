@@ -4,6 +4,14 @@
         color: '#00abec',
         defaults: {
             name: { value: "Azure Get Blob Storage" },
+            accountname: { value: "" },
+            accountname_type: { value: "" },
+            key: { value: "" },
+            key_type: { value: "" },
+            container: { value: "" },
+            container_type: { value: "" },
+            blob: { value: "" },
+            blob_type: { value: "" },
         },
         inputs: 1,
         outputs: 1,
@@ -11,12 +19,60 @@
         label: function () {
             return this.name || "Azure Get Blob Storage";
         },
-        credentials: {
-            accountname: { type: "text" },
-            key: { type: "text" },
-            container: { type: "text" },
-            blob: { type: "text" },
-        }
+        oneditprepare: function () {
+            // accountname
+            $('#node-input-accountname').typedInput({
+                default: 'str',
+                types: ['str', 'cred', 'env'],
+            });
+
+            $('#node-input-accountname').typedInput('value', this.accountname);
+            $('#node-input-accountname').typedInput('type', this.accountname_type);
+
+            // key
+            $('#node-input-key').typedInput({
+                default: 'str',
+                types: ['str', 'cred', 'env'],
+            });
+
+            $('#node-input-key').typedInput('value', this.key);
+            $('#node-input-key').typedInput('type', this.key_type);
+
+            // container
+            $('#node-input-container').typedInput({
+                default: 'str',
+                types: ['str', 'cred', 'env'],
+            });
+
+            $('#node-input-container').typedInput('value', this.container);
+            $('#node-input-container').typedInput('type', this.container_type);
+
+            // blob
+            $('#node-input-blob').typedInput({
+                default: 'str',
+                types: ['str', 'cred', 'env'],
+            });
+
+            $('#node-input-blob').typedInput('value', this.blob);
+            $('#node-input-blob').typedInput('type', this.blob_type);
+        },
+        oneditsave: function () {
+            // accountname
+            this.accountname = $('#node-input-accountname').typedInput('value');
+            this.accountname_type = $('#node-input-accountname').typedInput('type');
+
+            // key
+            this.key = $('#node-input-key').typedInput('value');
+            this.key_type = $('#node-input-key').typedInput('type');
+
+            // container
+            this.container = $('#node-input-container').typedInput('value');
+            this.container_type = $('#node-input-container').typedInput('type');
+
+            // blob
+            this.blob = $('#node-input-key').typedInput('value');
+            this.blob_type = $('#node-input-key').typedInput('type');
+        },
     });
 </script>
 

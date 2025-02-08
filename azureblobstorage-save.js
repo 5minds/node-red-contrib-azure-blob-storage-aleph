@@ -22,9 +22,9 @@ module.exports = function (RED) {
         const node = this;
         RED.nodes.createNode(this, config);
 
-        const clientAccountName = this.credentials?.accountname;
-        const clientAccountKey = this.credentials?.key;
-        const azureStorageBlobContainerName = this.credentials?.container;
+        const clientAccountName = RED.util.evaluateNodeProperty(config.accountname, config.accountname_type, node);
+        const clientAccountKey = RED.util.evaluateNodeProperty(config.key, config.key_type, node);
+        const azureStorageBlobContainerName = RED.util.evaluateNodeProperty(config.container, config.container_type, node);
 
         const azureStorageBlobConnectionString = `DefaultEndpointsProtocol=https;AccountName=${clientAccountName};AccountKey=${clientAccountKey};EndpointSuffix=core.windows.net`;
         setStatus(node, statusEnum.operational);
@@ -33,7 +33,7 @@ module.exports = function (RED) {
             try {
                 setStatus(node, statusEnum.sending);
 
-                const clientBlobName = parseBlobName(this.credentials, msg);
+                const clientBlobName = parseBlobName(config, msg);
 
                 const containerClient = new azure.ContainerClient(azureStorageBlobConnectionString, azureStorageBlobContainerName);
                 await containerClient.createIfNotExists();
@@ -49,15 +49,18 @@ module.exports = function (RED) {
                 done();
             } catch (error) {
                 setStatus(node, statusEnum.error);
+                
                 done(`Error while trying to save blob: : ${error.toString()}`);
                 this.error(`Error while trying to save blob: ${error.toString()}`);
             }
         });
 
-        const parseBlobName = (credentials, msg) => {
+        const parseBlobName = (config, msg) => {
             let clientBlobName;
 
-            if (!credentials.blob) {
+            const configBlobName = RED.util.evaluateNodeProperty(config.blob, config.blob_type, node);
+
+            if (!configBlobName) {
 
                 if (!msg.blobName) {
                     const nameObject = path.parse(msg.payload);
@@ -68,7 +71,7 @@ module.exports = function (RED) {
                 }
             }
             else {
-                clientBlobName = credentials.blob;
+                clientBlobName = configBlobName;
             }
 
             return clientBlobName;

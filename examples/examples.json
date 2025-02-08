@@ -1,0 +1,165 @@
+[
+    {
+        "id": "504914136823a903",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "c4a3c6b566e9d52b",
+        "type": "Aleph Save Blob",
+        "z": "504914136823a903",
+        "name": "Azure Save Blob Storage",
+        "accountname": "AZURE_ACCOUNTNAME",
+        "accountname_type": "env",
+        "key": "AZURE_KEY",
+        "key_type": "env",
+        "container": "AZURE_CONTAINER",
+        "container_type": "env",
+        "blob": "AZURE_BLOB",
+        "blob_type": "env",
+        "x": 430,
+        "y": 200,
+        "wires": [
+            [
+                "d55fe57a1088d34a"
+            ]
+        ]
+    },
+    {
+        "id": "9f66d1b08176ce85",
+        "type": "inject",
+        "z": "504914136823a903",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "/examples/examples.json",
+        "payloadType": "str",
+        "x": 170,
+        "y": 200,
+        "wires": [
+            [
+                "c4a3c6b566e9d52b"
+            ]
+        ]
+    },
+    {
+        "id": "d55fe57a1088d34a",
+        "type": "debug",
+        "z": "504914136823a903",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 640,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "bbdf098a8a8cbdc6",
+        "type": "Aleph Get Blob",
+        "z": "504914136823a903",
+        "name": "Azure Get Blob Storage",
+        "accountname": "AZURE_ACCOUNTNAME",
+        "accountname_type": "env",
+        "key": "AZURE_KEY",
+        "key_type": "env",
+        "container": "AZURE_CONTAINER",
+        "container_type": "env",
+        "blob": "AZURE_BLOB",
+        "blob_type": "env",
+        "x": 370,
+        "y": 300,
+        "wires": [
+            [
+                "d0fd4de49cd72057",
+                "57a1ce494f910e3c"
+            ]
+        ]
+    },
+    {
+        "id": "ea181085d5abfb02",
+        "type": "inject",
+        "z": "504914136823a903",
+        "name": "",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 110,
+        "y": 300,
+        "wires": [
+            [
+                "bbdf098a8a8cbdc6"
+            ]
+        ]
+    },
+    {
+        "id": "d0fd4de49cd72057",
+        "type": "debug",
+        "z": "504914136823a903",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 640,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "57a1ce494f910e3c",
+        "type": "file in",
+        "z": "504914136823a903",
+        "name": "",
+        "filename": "payload.downloadedFilename",
+        "filenameType": "msg",
+        "format": "utf8",
+        "chunk": false,
+        "sendError": false,
+        "encoding": "none",
+        "allProps": false,
+        "x": 580,
+        "y": 400,
+        "wires": [
+            [
+                "4191dd7408b6bc45"
+            ]
+        ]
+    },
+    {
+        "id": "4191dd7408b6bc45",
+        "type": "debug",
+        "z": "504914136823a903",
+        "name": "debug 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 710,
+        "y": 460,
+        "wires": []
+    }
+]
